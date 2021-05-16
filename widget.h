@@ -28,6 +28,7 @@ private slots:
     void socketConnected();
     void processSocketData();
     void process2();
+    void disconnected();
 
 private:
     Ui::Widget *ui;
@@ -37,7 +38,6 @@ private:
     QTcpServer *server;
     QTcpSocket *socket;
     QTcpSocket *abstractServerSocket;
-    bool serverGotInfo = false;
     QString serverFileName;
 };
 #endif // WIDGET_H

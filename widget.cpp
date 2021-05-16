@@ -14,10 +14,11 @@ Widget::Widget(QWidget *parent)
     ui->ipLineEdit->setValidator(new QRegularExpressionValidator(*ipRegex, this));
     ui->ipLineEdit->setText("127.0.0.1");
     ui->portLineEdit->setValidator(new QIntValidator(0,10000));
-    ui->portLineEdit->setText("1251");
+    ui->portLineEdit->setText("3046");
     ui->logTextEdit->setReadOnly(true);
+    ui->uploadProgressBar->setVisible(false);
     server = new QTcpServer();
-    if(server->listen(QHostAddress::Any, 1251)) {
+    if(server->listen(QHostAddress::Any, 3046)) {
         ui->logTextEdit->appendPlainText("Server successfully started.");
         QObject::connect(server, &QTcpServer::newConnection, this, &Widget::socketConnected);
     }
@@ -32,18 +33,20 @@ Widget::~Widget(){
 void Widget::on_chooseFileButton_clicked(){
     if(fileSet){
         if(ipRegex->match(ui->ipLineEdit->text()).hasMatch()){
-            ui->logTextEdit->appendPlainText("ip matched");
             socket = new QTcpSocket();
-            ui->logTextEdit->appendPlainText("socket created");
             socket->connectToHost(ui->ipLineEdit->text(), ui->portLineEdit->text().toInt());
-            ui->logTextEdit->appendPlainText("socket connecting...");
+            ui->logTextEdit->appendPlainText("Socket connecting...");
             if (socket->waitForConnected(1000))
                 ui->logTextEdit->appendPlainText("Connected!");
             QDataStream out(socket);
             QFile file(fileName);
             if(file.open(QIODevice::ReadOnly)){
+                ui->uploadProgressBar->setVisible(true);
                 out << fileName.split("/").last().toLocal8Bit();
                 QByteArray fileRead = file.readAll();
+                qint64 fileSize = fileRead.size();
+                ui->uploadProgressBar->setMaximum(fileSize);
+                ui->uploadProgressBar->setValue(0);
                 while (!fileRead.isEmpty()) {
                     QByteArray temp = fileRead.left(5000);
                     out << temp;
@@ -51,10 +54,15 @@ void Widget::on_chooseFileButton_clicked(){
                     QObject::connect(socket, &QTcpSocket::bytesWritten, &loop1, &QEventLoop::quit);
                     loop1.exec();
                     fileRead.remove(0, 5000);
+                    ui->uploadProgressBar->setValue(fileSize - fileRead.size());
                 }
             }
             fileSet = false;
             ui->chooseFileButton->setText("Choose File");
+            ui->fileNameLabel->setText("");
+            ui->uploadProgressBar->setVisible(false);
+            socket->disconnectFromHost();
+            socket->deleteLater();
         }else{
             ui->logTextEdit->appendPlainText("IP-address doesnt match the pattern");
         }
@@ -79,13 +87,9 @@ void Widget::processSocketData(){
     loop1.exec();
     QObject::disconnect(abstractServerSocket);
     QDataStream in(abstractServerSocket);
-    if(!serverGotInfo){
-        QByteArray read;
-        in >> read;
-        serverFileName = read.data();
-        ui->logTextEdit->appendPlainText(read);
-        serverGotInfo = true;
-    }
+    QByteArray read;
+    in >> read;
+    serverFileName = read.data();
     QFile readToFile(serverFileName);
     if(readToFile.open(QIODevice::Append)){
         while (abstractServerSocket->bytesAvailable()) {
@@ -93,8 +97,8 @@ void Widget::processSocketData(){
             in >> abcd;
             readToFile.write(abcd);
         }
-        ui->logTextEdit->appendPlainText("Data read.");
         QObject::connect(abstractServerSocket, &QTcpSocket::readyRead, this, &Widget::process2);
+        QObject::connect(abstractServerSocket, &QTcpSocket::disconnected, this, &Widget::disconnected);
     }else{
         ui->logTextEdit->appendPlainText(readToFile.errorString());
     }
@@ -109,8 +113,14 @@ void Widget::process2(){
             in >> abcd;
             readToFile.write(abcd);
         }
-        ui->logTextEdit->appendPlainText("Data read.");
     }else{
         ui->logTextEdit->appendPlainText(readToFile.errorString());
     }
+}
+
+void Widget::disconnected(){
+    ui->logTextEdit->appendPlainText("File saved, client disconnected.");
+    ui->logTextEdit->appendPlainText("File: "+QApplication::applicationDirPath()+"/"+serverFileName);
+    serverFileName.clear();
+
 }
