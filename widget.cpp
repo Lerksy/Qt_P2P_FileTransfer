@@ -45,8 +45,6 @@ void Widget::on_chooseFileButton_clicked(){
                 out << fileName.split("/").last().toLocal8Bit();
                 QByteArray fileRead = file.readAll();
                 while (!fileRead.isEmpty()) {
-                    //qDebug()<<file.bytesAvailable();
-                    //QByteArray fileRead = file.read(5000);
                     QByteArray temp = fileRead.left(5000);
                     out << temp;
                     QEventLoop loop1;
@@ -57,7 +55,6 @@ void Widget::on_chooseFileButton_clicked(){
             }
             fileSet = false;
             ui->chooseFileButton->setText("Choose File");
-            //socket->deleteLater();
         }else{
             ui->logTextEdit->appendPlainText("IP-address doesnt match the pattern");
         }
@@ -98,9 +95,6 @@ void Widget::processSocketData(){
         }
         ui->logTextEdit->appendPlainText("Data read.");
         QObject::connect(abstractServerSocket, &QTcpSocket::readyRead, this, &Widget::process2);
-        //readToFile.write(read);
-        //read.clear();
-        //readToFile.close();
     }else{
         ui->logTextEdit->appendPlainText(readToFile.errorString());
     }
@@ -113,13 +107,9 @@ void Widget::process2(){
         while (abstractServerSocket->bytesAvailable()) {
             QByteArray abcd;
             in >> abcd;
-            //ui->logTextEdit->appendPlainText(abcd);
             readToFile.write(abcd);
         }
         ui->logTextEdit->appendPlainText("Data read.");
-        //readToFile.write(read);
-        //read.clear();
-        //readToFile.close();
     }else{
         ui->logTextEdit->appendPlainText(readToFile.errorString());
     }
