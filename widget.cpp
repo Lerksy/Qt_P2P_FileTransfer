@@ -43,18 +43,16 @@ void Widget::on_chooseFileButton_clicked(){
             if(file.open(QIODevice::ReadOnly)){
                 ui->uploadProgressBar->setVisible(true);
                 out << fileName.split("/").last().toLocal8Bit();
-                QByteArray fileRead = file.readAll();
-                qint64 fileSize = fileRead.size();
-                ui->uploadProgressBar->setMaximum(fileSize);
+                QFileInfo fileInfo(fileName);
+                ui->uploadProgressBar->setMaximum(fileInfo.size());
                 ui->uploadProgressBar->setValue(0);
-                while (!fileRead.isEmpty()) {
-                    QByteArray temp = fileRead.left(5000);
+                while (!file.atEnd()) {
+                    QByteArray temp = file.read(5000);
                     out << temp;
                     QEventLoop loop1;
                     QObject::connect(socket, &QTcpSocket::bytesWritten, &loop1, &QEventLoop::quit);
                     loop1.exec();
-                    fileRead.remove(0, 5000);
-                    ui->uploadProgressBar->setValue(fileSize - fileRead.size());
+                    ui->uploadProgressBar->setValue(ui->uploadProgressBar->value()+temp.size());
                 }
             }
             fileSet = false;
@@ -120,7 +118,7 @@ void Widget::process2(){
 
 void Widget::disconnected(){
     ui->logTextEdit->appendPlainText("File saved, client disconnected.");
-    ui->logTextEdit->appendPlainText("File: "+QApplication::applicationDirPath()+"/"+serverFileName);
+    ui->logTextEdit->appendPlainText("File: "+QDir::currentPath()+"/"+serverFileName);
     serverFileName.clear();
 
 }
